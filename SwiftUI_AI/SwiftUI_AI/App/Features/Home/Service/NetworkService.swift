@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Model
 
-struct Photo: Decodable, Identifiable {
+struct Photo: Decodable, Identifiable, Equatable {
     let id: Int
     let albumId: Int
     let title: String
@@ -28,25 +28,35 @@ enum NetworkError: LocalizedError, Equatable {
 
 // MARK: - Protocol
 
-protocol NetworkServiceProtocol {
-    func fetchPhotos() async throws -> [Photo]
+protocol NetworkServiceProtocol: Sendable {
+    func fetchPhotos(page: Int, pageSize: Int) async throws -> [Photo]
 }
 
 // MARK: - Implementation
 
-final class NetworkService: NetworkServiceProtocol {
+final class NetworkService: NetworkServiceProtocol, @unchecked Sendable {
 
-    static let photosURL = URL(string: "https://jsonplaceholder.typicode.com/photos")!
+    nonisolated static let photosURL = URL(string: "https://jsonplaceholder.typicode.com/photos")!
 
     private let session: URLSession
 
-    init(session: URLSession = NetworkService.makeFreshSession()) {
+    nonisolated init(session: URLSession = NetworkService.makeFreshSession()) {
         self.session = session
     }
 
-    func fetchPhotos() async throws -> [Photo] {
+    nonisolated func fetchPhotos(page: Int, pageSize: Int) async throws -> [Photo] {
+        let start = page * pageSize
+        var components = URLComponents(url: Self.photosURL, resolvingAgainstBaseURL: false)!
+        components.queryItems = [
+            URLQueryItem(name: "_start", value: String(start)),
+            URLQueryItem(name: "_limit", value: String(pageSize)),
+        ]
+        guard let url = components.url else {
+            throw NetworkError.requestFailed(.badURL)
+        }
+
         do {
-            let (data, response) = try await session.data(from: Self.photosURL)
+            let (data, response) = try await session.data(from: url)
             let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
             guard (200...299).contains(statusCode) else {
                 throw NetworkError.invalidResponse(statusCode: statusCode)
@@ -62,7 +72,7 @@ final class NetworkService: NetworkServiceProtocol {
         // Unexpected errors propagate as-is — nothing silently swallowed
     }
 
-    private static func makeFreshSession() -> URLSession {
+    nonisolated private static func makeFreshSession() -> URLSession {
         let config = URLSessionConfiguration.ephemeral
         config.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
         config.urlCache = nil

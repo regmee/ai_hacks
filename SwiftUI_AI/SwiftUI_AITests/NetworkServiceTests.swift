@@ -67,7 +67,7 @@ struct NetworkServiceTests {
     // Happy path: valid JSON decodes into a [Photo] array.
     @Test func fetchPhotosReturnsDecodedPhotos() async throws {
         MockURLProtocol.requestHandler = { _ in (makeHTTPResponse(statusCode: 200), validPhotoJSON) }
-        let photos = try await NetworkService(session: makeMockSession()).fetchPhotos()
+        let photos = try await NetworkService(session: makeMockSession()).fetchPhotos(page: 0, pageSize: 20)
         #expect(photos.count == 1)
         #expect(photos[0].id == 1)
         #expect(photos[0].albumId == 1)
@@ -79,7 +79,7 @@ struct NetworkServiceTests {
     // A 200 response with an empty array is valid — returns [] without throwing.
     @Test func fetchPhotosEmptyArray() async throws {
         MockURLProtocol.requestHandler = { _ in (makeHTTPResponse(statusCode: 200), emptyArrayJSON) }
-        let photos = try await NetworkService(session: makeMockSession()).fetchPhotos()
+        let photos = try await NetworkService(session: makeMockSession()).fetchPhotos(page: 0, pageSize: 20)
         #expect(photos.isEmpty)
     }
 
@@ -87,7 +87,7 @@ struct NetworkServiceTests {
     @Test func fetchPhotosThrowsOnHTTP500() async throws {
         MockURLProtocol.requestHandler = { _ in (makeHTTPResponse(statusCode: 500), Data()) }
         await #expect(throws: NetworkError.invalidResponse(statusCode: 500)) {
-            try await NetworkService(session: makeMockSession()).fetchPhotos()
+            try await NetworkService(session: makeMockSession()).fetchPhotos(page: 0, pageSize: 20)
         }
     }
 
@@ -95,7 +95,7 @@ struct NetworkServiceTests {
     @Test func fetchPhotosThrowsOnHTTP404() async throws {
         MockURLProtocol.requestHandler = { _ in (makeHTTPResponse(statusCode: 404), Data()) }
         await #expect(throws: NetworkError.invalidResponse(statusCode: 404)) {
-            try await NetworkService(session: makeMockSession()).fetchPhotos()
+            try await NetworkService(session: makeMockSession()).fetchPhotos(page: 0, pageSize: 20)
         }
     }
 
@@ -103,7 +103,7 @@ struct NetworkServiceTests {
     @Test func fetchPhotosThrowsOnNetworkFailure() async throws {
         MockURLProtocol.requestHandler = { _ in throw URLError(.notConnectedToInternet) }
         await #expect(throws: NetworkError.requestFailed(.notConnectedToInternet)) {
-            try await NetworkService(session: makeMockSession()).fetchPhotos()
+            try await NetworkService(session: makeMockSession()).fetchPhotos(page: 0, pageSize: 20)
         }
     }
 
@@ -111,7 +111,7 @@ struct NetworkServiceTests {
     @Test func fetchPhotosThrowsOnMalformedJSON() async throws {
         MockURLProtocol.requestHandler = { _ in (makeHTTPResponse(statusCode: 200), malformedJSON) }
         await #expect(throws: NetworkError.decodingFailed) {
-            try await NetworkService(session: makeMockSession()).fetchPhotos()
+            try await NetworkService(session: makeMockSession()).fetchPhotos(page: 0, pageSize: 20)
         }
     }
 
@@ -119,7 +119,7 @@ struct NetworkServiceTests {
     @Test func fetchPhotosThrowsOnEmptyData() async throws {
         MockURLProtocol.requestHandler = { _ in (makeHTTPResponse(statusCode: 200), emptyData) }
         await #expect(throws: NetworkError.decodingFailed) {
-            try await NetworkService(session: makeMockSession()).fetchPhotos()
+            try await NetworkService(session: makeMockSession()).fetchPhotos(page: 0, pageSize: 20)
         }
     }
 }
